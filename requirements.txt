@@ -12,3 +12,5 @@ joblib==1.5.1
 
 email-validator==2.3.0
 requests==2.32.4
+
+gunicorn

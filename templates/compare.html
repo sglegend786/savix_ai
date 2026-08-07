@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Compare Schemes - SAVIX AI{% endblock %}
+{% block content %}
+<div class="page-header"><h4 class="mb-0">Compare Investment Schemes</h4></div>
+
+<div class="panel mb-3">
+  <form method="GET">
+    <label class="form-label small">Select 2-4 schemes to compare</label>
+    <div class="row g-2">
+      {% for s in all_schemes %}
+      <div class="col-6 col-md-4 col-lg-3">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" name="scheme_id" value="{{ s.id }}"
+            {{ 'checked' if s.id in schemes|map(attribute='id')|list }}>
+          <label class="form-check-label small">{{ s.name }}</label>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm mt-3">Update Comparison</button>
+  </form>
+</div>
+
+{% if schemes|length >= 2 %}
+<div class="panel">
+  <div class="table-responsive">
+    <table class="table table-bordered compare-table">
+      <thead>
+        <tr><th>Feature</th>{% for s in schemes %}<th>{{ s.name }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        <tr><td>Interest Rate</td>{% for s in schemes %}<td>{{ s.interest_rate }}% p.a.</td>{% endfor %}</tr>
+        <tr><td>Minimum Investment</td>{% for s in schemes %}<td>₹{{ s.minimum_investment|int if s.minimum_investment else '-' }}</td>{% endfor %}</tr>
+        <tr><td>Maximum Investment</td>{% for s in schemes %}<td>{{ '₹' ~ s.maximum_investment|int if s.maximum_investment else 'No limit' }}</td>{% endfor %}</tr>
+        <tr><td>Tenure</td>{% for s in schemes %}<td>{{ s.tenure }}</td>{% endfor %}</tr>
+        <tr><td>Risk Level</td>{% for s in schemes %}<td>{{ s.risk_level }}</td>{% endfor %}</tr>
+        <tr><td>Tax Information</td>{% for s in schemes %}<td class="small">{{ s.tax_notes }}</td>{% endfor %}</tr>
+        <tr><td>Premature Withdrawal</td>{% for s in schemes %}<td class="small">{{ s.premature_withdrawal_info }}</td>{% endfor %}</tr>
+        <tr>
+          <td>Est. Maturity on ₹10,000 / 1 yr*</td>
+          {% for s in schemes %}
+            <td>{% if s.interest_rate %}₹{{ '%.0f'|format(10000 * (1 + s.interest_rate/100)) }}{% else %}-{% endif %}</td>
+          {% endfor %}
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="text-muted small mb-0">*Illustrative calculation only, compounded annually. Actual returns/rates may differ — the highest figure here reflects the highest estimated return among selected schemes, not a recommendation. Consider risk, liquidity, and tax treatment together.</p>
+</div>
+{% else %}
+<div class="alert alert-info">Select at least 2 schemes above to see a side-by-side comparison.</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}Analytics - SAVIX AI{% endblock %}
+{% block content %}
+<div class="page-header">
+  <h4 class="mb-0">Monthly Analytics</h4>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="panel">
+      <h6 class="mb-2">Credit vs Debit — Monthly Overview</h6>
+      <canvas id="creditDebitChart" height="110"></canvas>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="panel">
+      <h6 class="mb-2">Category-wise Spending</h6>
+      <canvas id="categoryChart" height="140"></canvas>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mt-1">
+  <div class="col-6 col-lg-2"><div class="stat-card"><span class="stat-label">Total Income</span><span class="stat-value text-success">₹{{ "%.0f"|format(total_income) }}</span></div></div>
+  <div class="col-6 col-lg-2"><div class="stat-card"><span class="stat-label">Total Expenses</span><span class="stat-value text-danger">₹{{ "%.0f"|format(total_expense) }}</span></div></div>
+  <div class="col-6 col-lg-2"><div class="stat-card"><span class="stat-label">Net Savings</span><span class="stat-value">₹{{ "%.0f"|format(net_savings) }}</span></div></div>
+  <div class="col-6 col-lg-2"><div class="stat-card"><span class="stat-label">Avg Transaction</span><span class="stat-value">₹{{ "%.0f"|format(avg_txn) }}</span></div></div>
+  <div class="col-6 col-lg-2"><div class="stat-card"><span class="stat-label">Top Category</span><span class="stat-value small">{{ top_category }}</span></div></div>
+  <div class="col-6 col-lg-2"><div class="stat-card"><span class="stat-label">Top Month</span><span class="stat-value small">{{ top_month }}</span></div></div>
+</div>
+
+<div class="panel mt-3">
+  <h6 class="mb-2">App / Platform-wise Spending</h6>
+  <div class="row">
+    <div class="col-md-6"><canvas id="platformChart" height="180"></canvas></div>
+    <div class="col-md-6">
+      <table class="table table-sm" id="platformTable">
+        <thead><tr><th>Platform</th><th>Amount</th><th>%</th><th>Txns</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const chartLabels = {{ chart_labels|tojson }};
+const creditSeries = {{ credit_series|tojson }};
+const debitSeries = {{ debit_series|tojson }};
+const categoryLabels = {{ category_labels|tojson }};
+const categoryValues = {{ category_values|tojson }};
+
+new Chart(document.getElementById('creditDebitChart'), {
+  type: 'bar',
+  data: {
+    labels: chartLabels,
+    datasets: [
+      { label: 'Credit', data: creditSeries, backgroundColor: '#6c5ce7' },
+      { label: 'Debit', data: debitSeries, backgroundColor: '#fd79a8' }
+    ]
+  },
+  options: { responsive: true, scales: { y: { beginAtZero: true } } }
+});
+
+new Chart(document.getElementById('categoryChart'), {
+  type: 'doughnut',
+  data: {
+    labels: categoryLabels,
+    datasets: [{ data: categoryValues, backgroundColor: ['#6c5ce7','#00b894','#fdcb6e','#fd79a8','#0984e3','#e17055','#00cec9','#636e72','#d63031','#a29bfe','#55efc4'] }]
+  },
+  options: { responsive: true }
+});
+
+fetch("{{ url_for('analytics.api_platform') }}")
+  .then(r => r.json())
+  .then(data => {
+    const labels = data.map(d => d.platform);
+    const amounts = data.map(d => d.amount);
+    new Chart(document.getElementById('platformChart'), {
+      type: 'doughnut',
+      data: { labels, datasets: [{ data: amounts, backgroundColor: ['#6c5ce7','#00b894','#fdcb6e','#fd79a8','#0984e3','#e17055','#636e72'] }] },
+      options: { responsive: true }
+    });
+    const tbody = document.querySelector('#platformTable tbody');
+    data.forEach(d => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${d.platform}</td><td>₹${d.amount}</td><td>${d.percentage}%</td><td>${d.count}</td>`;
+      tbody.appendChild(tr);
+    });
+  });
+</script>
+{% endblock %}

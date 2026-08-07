@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}SAVIX AI{% endblock %}</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+{% if current_user.is_authenticated %}
+<div class="savix-shell">
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <i class="bi bi-wallet2"></i> SAVIX <span class="accent">AI</span>
+    </div>
+    <nav class="sidebar-nav">
+      <a href="{{ url_for('dashboard.dashboard') }}" class="{{ 'active' if request.endpoint == 'dashboard.dashboard' }}"><i class="bi bi-grid-1x2-fill"></i> Dashboard</a>
+      <a href="{{ url_for('transactions.list_transactions') }}" class="{{ 'active' if request.endpoint and 'transactions' in request.endpoint }}"><i class="bi bi-receipt"></i> Transactions</a>
+      <a href="{{ url_for('analytics.analytics') }}" class="{{ 'active' if request.endpoint == 'analytics.analytics' }}"><i class="bi bi-bar-chart-fill"></i> Analytics</a>
+      <a href="{{ url_for('budget.budget_page') }}" class="{{ 'active' if request.endpoint and 'budget' in request.endpoint }}"><i class="bi bi-piggy-bank-fill"></i> Budget</a>
+      <a href="{{ url_for('investments.investments_page') }}" class="{{ 'active' if request.endpoint and 'investments' in request.endpoint and request.endpoint != 'investments.compare_page' }}"><i class="bi bi-graph-up-arrow"></i> Investments</a>
+      <a href="{{ url_for('investments.compare_page') }}" class="{{ 'active' if request.endpoint == 'investments.compare_page' }}"><i class="bi bi-columns-gap"></i> Compare Schemes</a>
+      <a href="{{ url_for('insights.insights_page') }}" class="{{ 'active' if request.endpoint == 'insights.insights_page' }}"><i class="bi bi-stars"></i> AI Insights</a>
+      <a href="{{ url_for('profile.profile_page') }}" class="{{ 'active' if request.endpoint == 'profile.profile_page' }}"><i class="bi bi-person-circle"></i> Profile</a>
+      <a href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a>
+    </nav>
+  </aside>
+
+  <div class="main-area">
+    <header class="topbar d-flex d-lg-none">
+      <button class="btn btn-sm btn-outline-secondary" id="mobileNavToggle"><i class="bi bi-list"></i></button>
+      <span class="sidebar-brand small ms-2"><i class="bi bi-wallet2"></i> SAVIX <span class="accent">AI</span></span>
+    </header>
+
+    <main class="content-area">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <div class="flash-stack">
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+          {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <nav class="bottom-nav d-lg-none">
+    <a href="{{ url_for('dashboard.dashboard') }}"><i class="bi bi-grid-1x2-fill"></i></a>
+    <a href="{{ url_for('transactions.list_transactions') }}"><i class="bi bi-receipt"></i></a>
+    <a href="{{ url_for('analytics.analytics') }}"><i class="bi bi-bar-chart-fill"></i></a>
+    <a href="{{ url_for('investments.investments_page') }}"><i class="bi bi-graph-up-arrow"></i></a>
+    <a href="{{ url_for('profile.profile_page') }}"><i class="bi bi-person-circle"></i></a>
+  </nav>
+</div>
+{% else %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="flash-stack auth-flash">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+  {% block auth_content %}{% endblock %}
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="{{ url_for('static', filename='js/main.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -8,6 +8,7 @@
     <div class="panel">
       <h6 class="mb-2">Set Monthly Budget</h6>
       <form method="POST" action="{{ url_for('budget.save_budget') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <div class="mb-3">
           <label class="form-label">Monthly Budget Amount (₹)</label>
           <input type="number" step="0.01" name="amount" class="form-control" value="{{ budget_amount }}" required>

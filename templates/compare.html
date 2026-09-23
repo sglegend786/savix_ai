@@ -47,7 +47,293 @@
   </div>
   <p class="text-muted small mb-0">*Illustrative calculation only, compounded annually. Actual returns/rates may differ — the highest figure here reflects the highest estimated return among selected schemes, not a recommendation. Consider risk, liquidity, and tax treatment together.</p>
 </div>
+
+<div class="panel mt-4">
+  <h5 class="mb-3">Calculate & Compare Returns</h5>
+  <div class="row g-3 align-items-end mb-4">
+    <div class="col-md-3">
+      <label class="form-label small">Amount (₹)</label>
+      <input type="number" id="compareAmount" class="form-control form-control-sm" value="10000" min="100">
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small">Investment Mode</label>
+      <select id="compareMode" class="form-select form-select-sm">
+        <option value="lumpsum">One-time (Lumpsum)</option>
+        <option value="sip">Monthly (SIP)</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label small">Years</label>
+      <input type="number" id="compareYears" class="form-control form-control-sm" value="1" min="1">
+    </div>
+    <div class="col-md-3">
+      <button type="button" id="drawChartBtn" class="btn btn-primary btn-sm w-100">Compare in Chart</button>
+    </div>
+  </div>
+  <div style="position: relative; height: 450px; width: 100%;">
+    <canvas id="compareChartCanvas"></canvas>
+  </div>
+  <div id="chartNoteBox" class="mt-4 p-2 text-center" style="border: 1px solid #93c5fd; border-radius: 6px; background-color: #f8fafc; font-size: 0.85rem; color: #334155;"></div>
+  <div class="table-responsive mt-4">
+    <table class="table table-sm table-bordered text-center" id="resultsTable">
+      <thead class="table-light">
+        <tr>
+          <th>Scheme</th>
+          <th>Interest Rate</th>
+          <th>Total Invested (₹)</th>
+          <th>Estimated Interest (₹)</th>
+          <th>Amount After <span id="tblYears"></span> Years (₹)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Populated by JS -->
+      </tbody>
+    </table>
+  </div>
+</div>
 {% else %}
 <div class="alert alert-info">Select at least 2 schemes above to see a side-by-side comparison.</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if schemes|length >= 2 %}
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  Chart.register(ChartDataLabels);
+
+  const schemeData = [
+    {% for s in schemes %}
+    { name: "{{ s.name }}", rate: {{ s.interest_rate or 0 }} },
+    {% endfor %}
+  ];
+
+  let compareChart = null;
+
+  function drawChart() {
+    const amount = parseFloat(document.getElementById("compareAmount").value) || 0;
+    const years = parseInt(document.getElementById("compareYears").value) || 0;
+    const mode = document.getElementById("compareMode").value;
+
+    const tbody = document.querySelector("#resultsTable tbody");
+    tbody.innerHTML = "";
+    document.getElementById("tblYears").innerText = years;
+
+    // Fixed milestone years as in the image, up to the user's selected years
+    let milestones = [0, 1, 3, 5, 7, 10, 15, 20, 25, 30];
+    let yearPoints = milestones.filter(y => y < years);
+    yearPoints.push(years); // Always include the final year
+
+    const labels = yearPoints.map(y => y.toString());
+
+    const colorPalette = [
+      { border: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', shape: 'circle' },   // Blue
+      { border: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', shape: 'rect' },     // Green
+      { border: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', shape: 'triangle' }, // Orange
+      { border: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', shape: 'rectRot' },  // Purple
+    ];
+
+    const datasets = [];
+
+    schemeData.forEach((s, index) => {
+      const dataPoints = [];
+      let finalInvested = 0;
+      let finalMaturity = 0;
+
+      yearPoints.forEach(y => {
+        let invested = 0;
+        let maturity = 0;
+        if (mode === 'sip') {
+          const months = y * 12;
+          const monthlyRate = (s.rate / 100) / 12;
+          invested = amount * months;
+          if (monthlyRate > 0) {
+            maturity = amount * (Math.pow(1 + monthlyRate, months) - 1) / monthlyRate * (1 + monthlyRate);
+          } else {
+            maturity = invested;
+          }
+        } else {
+          invested = amount;
+          maturity = amount * Math.pow(1 + s.rate / 100, y);
+        }
+        dataPoints.push(maturity);
+        
+        if (y === years) {
+          finalInvested = invested;
+          finalMaturity = maturity;
+        }
+      });
+
+      const color = colorPalette[index % colorPalette.length];
+      
+      datasets.push({
+        label: s.name + ' - ' + s.rate + '% p.a.',
+        data: dataPoints,
+        backgroundColor: color.bg,
+        borderColor: color.border,
+        pointBackgroundColor: color.border,
+        pointStyle: color.shape,
+        borderWidth: 1.5,
+        fill: false,
+        tension: 0, 
+        pointRadius: 4,
+        pointHoverRadius: 6
+      });
+
+      let interestEarned = finalMaturity - finalInvested;
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><span style="display:inline-block;width:12px;height:12px;background-color:${color.border};border-radius:50%;margin-right:8px;"></span>${s.name}</td>
+        <td>${s.rate}%</td>
+        <td>₹${finalInvested.toFixed(0)}</td>
+        <td class="text-success">+₹${interestEarned.toFixed(0)}</td>
+        <td class="fw-bold">₹${finalMaturity.toFixed(0)}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    const ctx = document.getElementById('compareChartCanvas').getContext('2d');
+    if (compareChart) {
+      compareChart.destroy();
+    }
+
+    compareChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: datasets
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        layout: {
+          padding: { top: 40, left: 10, right: 30 }
+        },
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { usePointStyle: true, boxWidth: 10, font: { size: 12 } },
+            padding: 20
+          },
+          title: {
+            display: true,
+            text: 'Investment Amount vs Estimated Return (Different Schemes)',
+            font: { size: 20, weight: 'bold' },
+            padding: { bottom: 25 },
+            color: '#000'
+          },
+          datalabels: {
+            align: function(context) {
+              if (context.dataIndex === 0) return 'right'; 
+              
+              const val = context.dataset.data[context.dataIndex];
+              const allVals = context.chart.data.datasets.map(ds => ds.data[context.dataIndex]);
+              const sorted = [...new Set(allVals)].sort((a,b) => b - a);
+              const rank = sorted.indexOf(val);
+              const total = sorted.length;
+              
+              if (total === 1) return 'top';
+              if (total === 2) return rank === 0 ? 'top' : 'bottom';
+              if (total === 3) {
+                 if (rank === 0) return 'top';
+                 if (rank === 2) return 'bottom';
+                 return 'center';
+              }
+              if (rank === 0 || rank === 1) return 'top';
+              return 'bottom';
+            },
+            anchor: 'center',
+            offset: function(context) {
+              if (context.dataIndex === 0) return 8;
+              
+              const val = context.dataset.data[context.dataIndex];
+              const allVals = context.chart.data.datasets.map(ds => ds.data[context.dataIndex]);
+              const sorted = [...new Set(allVals)].sort((a,b) => b - a);
+              const rank = sorted.indexOf(val);
+              const total = sorted.length;
+              
+              if (total === 2) return 8;
+              if (total === 3) {
+                 if (rank === 1) return 0;
+                 return 12;
+              }
+              if (total >= 4) {
+                 if (rank === 0 || rank === total - 1) return 18;
+                 return 4;
+              }
+              return 8;
+            },
+            color: function(context) {
+              if (context.dataIndex === 0) return '#000'; // black for Year 0
+              return context.dataset.borderColor;
+            },
+            font: { weight: 'bold', size: 11 },
+            display: function(context) {
+              // Only show Year 0 for the first dataset to avoid overlapping 10,000 multiple times
+              if (context.dataIndex === 0 && context.datasetIndex !== 0) return false;
+              // Hide labels if there are too many points, otherwise show all
+              return labels.length <= 15;
+            },
+            formatter: function(value) {
+              return new Intl.NumberFormat('en-IN').format(Math.round(value));
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                let label = context.dataset.label || '';
+                if (label) {
+                  label += ': ';
+                }
+                if (context.parsed.y !== null) {
+                  label += new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(context.parsed.y);
+                }
+                return label;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { 
+            title: { display: true, text: 'Years', font: {weight: 'bold', size: 14}, color: '#000' },
+            grid: { display: false },
+            ticks: { color: '#000', font: { size: 13, weight: 'bold' } }
+          },
+          y: { 
+            title: { display: true, text: 'Amount (₹)', font: {weight: 'bold', size: 14}, color: '#000' },
+            grid: {
+              color: '#e0e0e0',
+              borderDash: [5, 5] // Dashed horizontal lines
+            },
+            ticks: { 
+              color: '#000', 
+              font: { size: 12 },
+              maxTicksLimit: 12 // Create more granular jumps
+            },
+            border: { display: true, color: '#000' } // Solid axis line
+          }
+        },
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        }
+      }
+    });
+
+    // Update Note Box
+    const noteBox = document.getElementById("chartNoteBox");
+    if (noteBox) {
+      noteBox.innerHTML = `<strong>Note:</strong> Investment Amount at Year 0 = ₹${new Intl.NumberFormat('en-IN').format(amount)} (${mode === 'lumpsum' ? 'Lump Sum' : 'SIP'}). Actual returns may vary.`;
+    }
+  }
+
+  document.getElementById("drawChartBtn").addEventListener("click", function(e) { e.preventDefault(); drawChart(); });
+  document.getElementById("compareAmount").addEventListener("input", drawChart);
+  document.getElementById("compareYears").addEventListener("input", drawChart);
+  document.getElementById("compareMode").addEventListener("change", drawChart);
+  drawChart(); // Draw initial chart
+});
+</script>
 {% endif %}
 {% endblock %}

@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Financial Health Score - SAVIX AI{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h4 class="mb-0">Financial Health Score</h4>
+    <p class="text-muted mb-0 small">Based on your real financial data. Updated every time you visit.</p>
+  </div>
+  <a href="{{ url_for("dashboard.dashboard") }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-arrow-left"></i> Dashboard</a>
+</div>
+
+<!-- Score Card -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-4">
+    <div class="panel text-center">
+      <div class="mb-2" style="font-size:0.85rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.05em;">Your Financial Health Score</div>
+      <div style="font-size:4rem;font-weight:800;color:var(--accent);line-height:1;">{{ score.total_score }}</div>
+      <div style="font-size:1.1rem;font-weight:600;" class="text-{{ score.grade_color }} mb-2">{{ score.grade }}</div>
+      <div class="progress mb-3" style="height:12px;border-radius:10px;">
+        <div class="progress-bar bg-{{ score.grade_color }}" role="progressbar" style="width:{{ score.total_score }}%;border-radius:10px;"></div>
+      </div>
+      <small class="text-muted">Score range: 0 (Poor) ? 100 (Excellent)</small>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="panel h-100">
+      <h6 class="mb-3">Score Breakdown</h6>
+      {% for key, comp in score.component_scores.items() %}
+      <div class="mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-1">
+          <span class="small fw-semibold">{{ key.replace("_"," ").title() }}</span>
+          <span class="badge bg-{{ 'success' if comp.score >= 75 else ('warning' if comp.score >= 50 else 'danger') }} bg-opacity-15 text-{{ 'success' if comp.score >= 75 else ('warning' if comp.score >= 50 else 'danger') }}">{{ comp.score|int }}/100</span>
+        </div>
+        <div class="progress mb-1" style="height:6px;border-radius:5px;">
+          <div class="progress-bar bg-{{ 'success' if comp.score >= 75 else ('warning' if comp.score >= 50 else 'danger') }}" style="width:{{ comp.score }}%;border-radius:5px;"></div>
+        </div>
+        <small class="text-muted">{{ comp.explanation }} <span class="text-muted opacity-60">(weight: {{ comp.weight }}%)</span></small>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  {% if score.strengths %}
+  <div class="col-md-4">
+    <div class="panel h-100">
+      <h6 class="mb-3 text-success"><i class="bi bi-check-circle-fill"></i> Strengths</h6>
+      {% for s in score.strengths %}
+      <div class="d-flex align-items-start gap-2 mb-2">
+        <i class="bi bi-star-fill text-success mt-1 small"></i>
+        <div>
+          <div class="small fw-semibold">{{ s.name }}</div>
+          <div class="small text-muted">{{ s.explanation }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if score.risks %}
+  <div class="col-md-4">
+    <div class="panel h-100">
+      <h6 class="mb-3 text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Areas of Risk</h6>
+      {% for r in score.risks %}
+      <div class="d-flex align-items-start gap-2 mb-2">
+        <i class="bi bi-arrow-up-circle-fill text-danger mt-1 small"></i>
+        <div>
+          <div class="small fw-semibold">{{ r.name }}</div>
+          <div class="small text-muted">{{ r.explanation }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="col-md-4">
+    <div class="panel h-100">
+      <h6 class="mb-3 text-primary"><i class="bi bi-lightning-fill"></i> Recommended Actions</h6>
+      {% for action in score.recommended_actions %}
+      <div class="d-flex align-items-start gap-2 mb-2">
+        <span class="badge bg-primary bg-opacity-10 text-primary mt-1" style="min-width:20px;">{{ loop.index }}</span>
+        <div class="small text-muted">{{ action }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Financial Snapshot -->
+<div class="panel mt-3">
+  <h6 class="mb-3">Financial Snapshot ({{ profile.current_month }})</h6>
+  <div class="row g-3">
+    <div class="col-6 col-md-2">
+      <div class="stat-card">
+        <span class="stat-label">Income</span>
+        <span class="stat-value text-success">?{{ "{:,.0f}".format(profile.this_month_income) }}</span>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card">
+        <span class="stat-label">Expenses</span>
+        <span class="stat-value text-danger">?{{ "{:,.0f}".format(profile.this_month_expenses) }}</span>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card">
+        <span class="stat-label">Savings</span>
+        <span class="stat-value {{ 'text-success' if profile.this_month_savings >= 0 else 'text-danger' }}">?{{ "{:,.0f}".format(profile.this_month_savings) }}</span>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card">
+        <span class="stat-label">Savings Rate</span>
+        <span class="stat-value">{{ profile.savings_rate }}%</span>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card">
+        <span class="stat-label">Net Worth</span>
+        <span class="stat-value">?{{ "{:,.0f}".format(profile.net_worth) }}</span>
+      </div>
+    </div>
+    <div class="col-6 col-md-2">
+      <div class="stat-card">
+        <span class="stat-label">Debt Ratio</span>
+        <span class="stat-value {{ 'text-danger' if profile.debt_to_income_ratio > 40 else '' }}">{{ profile.debt_to_income_ratio }}%</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="text-muted small mt-3"><i class="bi bi-info-circle"></i> This score is based solely on the financial data you have entered in SAVIX AI. It is for personal tracking and educational purposes only, and is not a financial advisory service.</p>
+{% endblock %}

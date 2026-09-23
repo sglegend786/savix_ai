@@ -14,27 +14,38 @@
   <i class="bi bi-info-circle"></i> Indicative / reference information — verify current rates with the official provider before investing.
 </div>
 
-<div class="row g-3">
-  {% for s in schemes %}
-  <div class="col-md-6 col-lg-4">
-    <div class="scheme-card">
-      <div class="form-check">
-        <input class="form-check-input compare-checkbox" type="checkbox" form="compareForm" name="scheme_id" value="{{ s.id }}">
-        <label class="form-check-label small text-muted">Select to compare</label>
+<div class="row g-4">
+  {% for scheme_type, group_schemes in schemes|groupby('scheme_type') %}
+  <div class="col-md-6 col-lg-6">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-header bg-light border-bottom-0 pt-3 pb-2">
+        <h5 class="mb-0 text-primary fw-bold">{{ scheme_type }}</h5>
       </div>
-      <h6 class="scheme-name">{{ s.name }}</h6>
-      <span class="badge bg-secondary mb-2">{{ s.scheme_type }}</span>
-      <div class="scheme-row"><span>Interest Rate</span><strong>{{ s.interest_rate }}% p.a.</strong></div>
-      <div class="scheme-row"><span>Min Investment</span><strong>₹{{ s.minimum_investment|int if s.minimum_investment else '-' }}</strong></div>
-      <div class="scheme-row"><span>Tenure</span><strong>{{ s.tenure }}</strong></div>
-      <div class="scheme-row"><span>Risk</span><strong>{{ s.risk_level }}</strong></div>
-      <div class="d-flex gap-2 mt-2">
-        <button class="btn btn-sm btn-outline-primary flex-fill" data-bs-toggle="modal" data-bs-target="#detailsModal{{ s.id }}">View Details</button>
-        <button class="btn btn-sm btn-primary flex-fill" data-bs-toggle="modal" data-bs-target="#investModal{{ s.id }}">Invest / Calculate</button>
+      <div class="card-body p-0">
+        <ul class="list-group list-group-flush">
+          {% for s in group_schemes %}
+          <li class="list-group-item py-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="form-check">
+                <input class="form-check-input compare-checkbox" type="checkbox" form="compareForm" name="scheme_id" value="{{ s.id }}" id="chk{{ s.id }}">
+                <label class="form-check-label fw-bold text-dark" for="chk{{ s.id }}">{{ s.provider }}</label>
+              </div>
+              <span class="badge bg-success bg-opacity-10 text-success border border-success">{{ s.interest_rate }}% p.a.</span>
+            </div>
+            <div class="d-flex gap-2">
+              <button class="btn btn-sm btn-outline-secondary flex-fill" data-bs-toggle="modal" data-bs-target="#detailsModal{{ s.id }}">Details</button>
+              <button class="btn btn-sm btn-primary flex-fill" data-bs-toggle="modal" data-bs-target="#investModal{{ s.id }}">Calc / Invest</button>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
       </div>
     </div>
   </div>
+  {% endfor %}
+</div>
 
+{% for s in schemes %}
   <div class="modal fade" id="detailsModal{{ s.id }}" tabindex="-1">
     <div class="modal-dialog">
       <div class="modal-content">
@@ -48,6 +59,23 @@
             <li><strong>Premature Withdrawal:</strong> {{ s.premature_withdrawal_info }}</li>
             <li><strong>Last Updated:</strong> {{ s.updated_at.strftime('%d %b %Y') }}</li>
           </ul>
+          
+          {% if s.official_link %}
+          <div class="mb-3">
+            <strong>Official Provider Link:</strong><br>
+            <a href="{{ s.official_link }}" target="_blank" rel="noopener noreferrer" class="small text-decoration-none">
+              <i class="bi bi-box-arrow-up-right"></i> Visit Official Website
+            </a>
+          </div>
+          {% endif %}
+          
+          {% if s.investment_steps %}
+          <div class="mb-3">
+            <strong>How to Invest:</strong>
+            <div class="small p-2 bg-light mt-1" style="white-space: pre-wrap; border-radius: 4px;">{{ s.investment_steps }}</div>
+          </div>
+          {% endif %}
+
           <p class="text-muted small mb-0">Indicative / reference information — verify current rates with the official provider before investing.</p>
         </div>
       </div>
@@ -72,6 +100,7 @@
           <p class="text-muted small">Illustrative calculation only. Actual returns/rates may differ.</p>
           <hr>
           <form method="POST" action="{{ url_for('investments.invest_in_scheme', scheme_id=s.id) }}" class="row g-2">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <div class="col"><label class="form-label small">Invest Amount (₹)</label><input type="number" name="amount" class="form-control" required></div>
             <div class="col"><label class="form-label small">Tenure (yrs)</label><input type="number" name="tenure" class="form-control" value="1" required></div>
             <div class="col-12 mt-2"><button type="submit" class="btn btn-primary w-100">Record Investment</button></div>
@@ -80,17 +109,28 @@
       </div>
     </div>
   </div>
-  {% endfor %}
-</div>
+{% endfor %}
 
 {% if my_investments %}
 <div class="panel mt-3">
   <h6 class="mb-2">Your Tracked Investments</h6>
   <table class="table table-sm">
-    <thead><tr><th>Scheme</th><th>Amount</th><th>Start Date</th><th>Tenure</th><th>Expected Rate</th></tr></thead>
+    <thead><tr><th>Scheme</th><th>Amount</th><th>Start Date</th><th>Tenure</th><th>Expected Rate</th><th>Action</th></tr></thead>
     <tbody>
     {% for inv in my_investments %}
-      <tr><td>{{ inv.scheme.name }}</td><td>₹{{ inv.amount|int }}</td><td>{{ inv.start_date.strftime('%d %b %Y') }}</td><td>{{ inv.tenure }} yrs</td><td>{{ inv.expected_rate }}%</td></tr>
+      <tr>
+        <td>{{ inv.scheme.name }}</td>
+        <td>₹{{ inv.amount|int }}</td>
+        <td>{{ inv.start_date.strftime('%d %b %Y') }}</td>
+        <td>{{ inv.tenure }} yrs</td>
+        <td>{{ inv.expected_rate }}%</td>
+        <td>
+          <form method="POST" action="{{ url_for('investments.remove_investment', investment_id=inv.id) }}" style="display:inline;">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Remove</button>
+          </form>
+        </td>
+      </tr>
     {% endfor %}
     </tbody>
   </table>

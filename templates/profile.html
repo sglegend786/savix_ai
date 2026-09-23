@@ -21,6 +21,7 @@
     <div class="panel mb-3">
       <h6 class="mb-2">Update Name</h6>
       <form method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="update_name">
         <div class="input-group">
           <input type="text" name="name" class="form-control" value="{{ current_user.name }}" required>
@@ -32,6 +33,7 @@
     <div class="panel">
       <h6 class="mb-2">Change Password</h6>
       <form method="POST">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="action" value="change_password">
         {% if current_user.has_password %}
         <div class="mb-2">

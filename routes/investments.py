@@ -102,3 +102,16 @@ def calculate_returns():
             "estimated_interest": round(maturity - principal, 2),
             "estimated_maturity": round(maturity, 2),
         })
+
+@investments_bp.route("/investments/remove/<int:investment_id>", methods=["POST"])
+@login_required
+def remove_investment(investment_id):
+    investment = Investment.query.get_or_404(investment_id)
+    if investment.user_id != current_user.id:
+        flash("You are not authorized to remove this investment.", "danger")
+        return redirect(url_for("investments.investments_page"))
+    
+    db.session.delete(investment)
+    db.session.commit()
+    flash("Tracked investment removed successfully.", "success")
+    return redirect(url_for("investments.investments_page"))

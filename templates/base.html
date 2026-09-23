@@ -22,7 +22,14 @@
       <a href="{{ url_for('budget.budget_page') }}" class="{{ 'active' if request.endpoint and 'budget' in request.endpoint }}"><i class="bi bi-piggy-bank-fill"></i> Budget</a>
       <a href="{{ url_for('investments.investments_page') }}" class="{{ 'active' if request.endpoint and 'investments' in request.endpoint and request.endpoint != 'investments.compare_page' }}"><i class="bi bi-graph-up-arrow"></i> Investments</a>
       <a href="{{ url_for('investments.compare_page') }}" class="{{ 'active' if request.endpoint == 'investments.compare_page' }}"><i class="bi bi-columns-gap"></i> Compare Schemes</a>
+
+      <div class="sidebar-divider"></div>
+
+      <a href="{{ url_for('health.health_score_page') }}" class="{{ 'active' if request.endpoint and 'health' in request.endpoint }}"><i class="bi bi-heart-pulse-fill"></i> Health Score <span class="badge bg-primary bg-opacity-20 text-primary ms-auto" style="font-size:.65rem;">NEW</span></a>
+      <a href="{{ url_for('goals.goals_page') }}" class="{{ 'active' if request.endpoint and 'goals' in request.endpoint }}"><i class="bi bi-bullseye"></i> Financial Goals</a>
+      <a href="{{ url_for('debt.debt_page') }}" class="{{ 'active' if request.endpoint and 'debt' in request.endpoint }}"><i class="bi bi-credit-card-2-front"></i> Debt Tracker</a>
       <a href="{{ url_for('insights.insights_page') }}" class="{{ 'active' if request.endpoint == 'insights.insights_page' }}"><i class="bi bi-stars"></i> AI Insights</a>
+
       <a href="{{ url_for('profile.profile_page') }}" class="{{ 'active' if request.endpoint == 'profile.profile_page' }}"><i class="bi bi-person-circle"></i> Profile</a>
       <a href="{{ url_for('auth.logout') }}"><i class="bi bi-box-arrow-right"></i> Logout</a>
     </nav>

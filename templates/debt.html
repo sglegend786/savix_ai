@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}Debt Tracker - SAVIX AI{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h4 class="mb-0">Debt Tracker</h4>
+    <p class="text-muted mb-0 small">Track your loans and plan your debt-free journey.</p>
+  </div>
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addDebtModal">
+    <i class="bi bi-plus-lg"></i> Add Loan
+  </button>
+</div>
+
+{% if debt_data %}
+<!-- Summary -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <span class="stat-label">Total Outstanding</span>
+      <span class="stat-value text-danger">&#8377;{{ "{:,.0f}".format(total_outstanding) }}</span>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <span class="stat-label">Monthly EMI Total</span>
+      <span class="stat-value">&#8377;{{ "{:,.0f}".format(total_emi) }}</span>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <span class="stat-label">Active Loans</span>
+      <span class="stat-value">{{ debt_data | selectattr("debt.is_active") | list | length }}</span>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <span class="stat-label">Highest Rate</span>
+      <span class="stat-value text-danger">{{ (debt_data | selectattr("debt.is_active") | map(attribute="debt.interest_rate") | list | max) if debt_data else 0 }}%</span>
+    </div>
+  </div>
+</div>
+
+<!-- Payoff Strategies -->
+{% if avalanche %}
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="panel">
+      <h6 class="mb-2"><i class="bi bi-lightning-fill text-warning"></i> Avalanche Strategy <small class="text-muted fw-normal">(pay highest rate first — saves most interest)</small></h6>
+      {% for d in avalanche %}
+      <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+        <span class="small">{{ loop.index }}. {{ d.loan_name }}</span>
+        <span class="badge bg-danger bg-opacity-10 text-danger">{{ d.interest_rate }}% p.a.</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="panel">
+      <h6 class="mb-2"><i class="bi bi-snow text-info"></i> Snowball Strategy <small class="text-muted fw-normal">(pay smallest balance first — builds momentum)</small></h6>
+      {% for d in snowball %}
+      <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+        <span class="small">{{ loop.index }}. {{ d.loan_name }}</span>
+        <span class="badge bg-info bg-opacity-10 text-info">&#8377;{{ "{:,.0f}".format(d.outstanding) }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Loans List -->
+{% for item in debt_data %}
+{% set d = item.debt %}
+<div class="panel mb-3 {{ 'opacity-50' if not d.is_active }}">
+  <div class="d-flex justify-content-between align-items-start">
+    <div>
+      <span class="badge bg-secondary bg-opacity-10 text-secondary mb-1">{{ d.loan_type }}</span>
+      <h6 class="mb-0 fw-bold">{{ d.loan_name }}</h6>
+      <div class="small text-muted mt-1">
+        <span class="me-3"><i class="bi bi-percent"></i> {{ d.interest_rate }}% p.a.</span>
+        {% if d.emi %}<span class="me-3"><i class="bi bi-calendar-month"></i> EMI: &#8377;{{ "{:,.0f}".format(d.emi) }}</span>{% endif %}
+        {% if d.due_day %}<span><i class="bi bi-calendar-event"></i> Due: {{ d.due_day }}th</span>{% endif %}
+      </div>
+    </div>
+    <div class="text-end">
+      <div class="fw-bold text-danger">&#8377;{{ "{:,.0f}".format(d.outstanding) }}</div>
+      <small class="text-muted">of &#8377;{{ "{:,.0f}".format(d.principal) }}</small>
+    </div>
+  </div>
+
+  {% if d.principal > 0 %}
+  {% set paid_pct = [(d.principal - d.outstanding) / d.principal * 100, 0] | max %}
+  <div class="progress mt-2 mb-1" style="height:6px;border-radius:5px;">
+    <div class="progress-bar bg-success" style="width:{{ paid_pct }}%;border-radius:5px;"></div>
+  </div>
+  <small class="text-muted">{{ paid_pct | int }}% paid off</small>
+  {% endif %}
+
+  {% if item.months_to_payoff %}
+  <div class="small text-muted mt-1"><i class="bi bi-clock"></i> Payoff in ~{{ item.months_to_payoff }} months at current EMI</div>
+  {% endif %}
+
+  {% if d.is_active %}
+  <form method="POST" action="{{ url_for('debt.update_debt', debt_id=d.id) }}" class="d-flex gap-2 mt-3">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="payment">
+    <input type="number" name="amount" class="form-control form-control-sm" placeholder="Record payment" min="1" step="any" required>
+    <button type="submit" class="btn btn-success btn-sm">Pay</button>
+    <form method="POST" action="{{ url_for('debt.update_debt', debt_id=d.id) }}" class="d-inline">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="toggle">
+      <button type="submit" class="btn btn-outline-secondary btn-sm">Close</button>
+    </form>
+    <form method="POST" action="{{ url_for('debt.delete_debt', debt_id=d.id) }}" class="d-inline"
+          onsubmit="return confirm('Delete this loan?')">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i></button>
+    </form>
+  </form>
+  {% endif %}
+</div>
+{% endfor %}
+
+{% else %}
+<div class="panel text-center py-5">
+  <i class="bi bi-credit-card-2-front" style="font-size:3rem;color:var(--accent-soft);"></i>
+  <h5 class="mt-3">No loans tracked</h5>
+  <p class="text-muted">Add your loans to track your debt-free journey.</p>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDebtModal">Add a Loan</button>
+</div>
+{% endif %}
+
+<!-- Add Debt Modal -->
+<div class="modal fade" id="addDebtModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('debt.add_debt') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Loan / Debt</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Loan Name *</label>
+            <input type="text" name="loan_name" class="form-control" placeholder="e.g. HDFC Personal Loan" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Loan Type</label>
+            <select name="loan_type" class="form-select">
+              {% for lt in loan_types %}<option>{{ lt }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">Principal (&#8377;) *</label>
+              <input type="number" name="principal" class="form-control" min="1" step="any" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Outstanding (&#8377;)</label>
+              <input type="number" name="outstanding" class="form-control" min="0" step="any" placeholder="Leave blank = principal">
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-4">
+              <label class="form-label">Interest Rate (% p.a.) *</label>
+              <input type="number" name="interest_rate" class="form-control" min="0" step="0.01" required>
+            </div>
+            <div class="col-4">
+              <label class="form-label">Tenure (months)</label>
+              <input type="number" name="tenure_months" class="form-control" min="1">
+            </div>
+            <div class="col-4">
+              <label class="form-label">EMI (&#8377;)</label>
+              <input type="number" name="emi" class="form-control" min="0" step="any" placeholder="Auto-calc">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">EMI Due Day (date of month)</label>
+            <input type="number" name="due_day" class="form-control" min="1" max="31" placeholder="e.g. 5">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Notes</label>
+            <textarea name="notes" class="form-control" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Add Loan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

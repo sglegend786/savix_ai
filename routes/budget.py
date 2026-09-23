@@ -1,6 +1,7 @@
 from datetime import date
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_required, current_user
+from sqlalchemy import func
 
 from extensions import db
 from models import Budget, Transaction
@@ -12,13 +13,20 @@ budget_bp = Blueprint("budget", __name__)
 @login_required
 def budget_page():
     today = date.today()
-    budget = Budget.query.filter_by(user_id=current_user.id, month=today.month, year=today.year).first()
+    uid = current_user.id
 
-    txns = Transaction.query.filter_by(user_id=current_user.id).all()
-    month_spent = sum(
-        t.amount for t in txns
-        if t.transaction_type == "DEBIT" and t.date.month == today.month and t.date.year == today.year
-    )
+    budget = Budget.query.filter_by(user_id=uid, month=today.month, year=today.year).first()
+
+    # SQL aggregation — no N+1 query
+    month_spent_row = db.session.query(
+        func.sum(Transaction.amount)
+    ).filter(
+        Transaction.user_id == uid,
+        Transaction.transaction_type == "DEBIT",
+        func.strftime("%m", Transaction.date) == f"{today.month:02d}",
+        func.strftime("%Y", Transaction.date) == str(today.year),
+    ).scalar()
+    month_spent = float(month_spent_row or 0)
 
     amount = budget.amount if budget else 0
     remaining = amount - month_spent
@@ -66,3 +74,5 @@ def save_budget():
     db.session.commit()
     flash("Monthly budget saved.", "success")
     return redirect(url_for("budget.budget_page"))
+
+

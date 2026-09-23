@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Financial Goals - SAVIX AI{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <h4 class="mb-0">Financial Goals</h4>
+    <p class="text-muted mb-0 small">Track your savings goals and stay on course.</p>
+  </div>
+  <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addGoalModal">
+    <i class="bi bi-plus-lg"></i> Add Goal
+  </button>
+</div>
+
+{% if not goal_data %}
+<div class="panel text-center py-5">
+  <i class="bi bi-bullseye" style="font-size:3rem;color:var(--accent-soft);"></i>
+  <h5 class="mt-3">No goals yet</h5>
+  <p class="text-muted">Set a financial goal to stay motivated and track your progress.</p>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addGoalModal">Create Your First Goal</button>
+</div>
+{% else %}
+<div class="row g-3">
+{% for item in goal_data %}
+{% set g = item.goal %}
+{% set health_colors = {"on_track": "success", "at_risk": "warning", "behind": "danger", "completed": "primary", "no_data": "secondary"} %}
+{% set hc = health_colors.get(item.health, "secondary") %}
+<div class="col-md-6 col-lg-4">
+  <div class="panel h-100">
+    <div class="d-flex justify-content-between align-items-start mb-2">
+      <div>
+        <span class="badge bg-{{ hc }} bg-opacity-15 text-{{ hc }} mb-1">{{ item.health.replace("_"," ").title() }}</span>
+        <h6 class="mb-0 fw-bold">{{ g.name }}</h6>
+        <small class="text-muted">{{ g.goal_type }}</small>
+      </div>
+      <div class="dropdown">
+        <button class="btn btn-link btn-sm p-0 text-muted" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li>
+            <form method="POST" action="{{ url_for('goals.update_goal', goal_id=g.id) }}" class="d-inline">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="toggle">
+              <button class="dropdown-item" type="submit">{{ 'Deactivate' if g.is_active else 'Activate' }}</button>
+            </form>
+          </li>
+          <li>
+            <form method="POST" action="{{ url_for('goals.delete_goal', goal_id=g.id) }}" class="d-inline"
+                  onsubmit="return confirm('Delete this goal?')">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="dropdown-item text-danger" type="submit">Delete</button>
+            </form>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="d-flex justify-content-between small mb-1">
+      <span class="text-muted">Progress</span>
+      <span class="fw-semibold">{{ g.progress_pct }}%</span>
+    </div>
+    <div class="progress mb-2" style="height:8px;border-radius:5px;">
+      <div class="progress-bar bg-{{ hc }}" style="width:{{ g.progress_pct }}%;border-radius:5px;"></div>
+    </div>
+    <div class="d-flex justify-content-between small text-muted mb-3">
+      <span>Saved: <strong class="text-dark">&#8377;{{ "{:,.0f}".format(g.current_amount) }}</strong></span>
+      <span>Target: <strong class="text-dark">&#8377;{{ "{:,.0f}".format(g.target_amount) }}</strong></span>
+    </div>
+
+    {% if g.deadline %}
+    <div class="small text-muted mb-1"><i class="bi bi-calendar3"></i> Deadline: {{ g.deadline.strftime('%d %b %Y') }}</div>
+    {% endif %}
+    {% if item.required_monthly %}
+    <div class="small text-muted mb-1"><i class="bi bi-arrow-repeat"></i> Required monthly: <strong>&#8377;{{ "{:,.0f}".format(item.required_monthly) }}</strong></div>
+    {% endif %}
+    {% if item.projected_months is not none %}
+    <div class="small text-muted mb-2"><i class="bi bi-clock"></i> Projected: <strong>{{ item.projected_months }} months</strong> at current pace</div>
+    {% endif %}
+
+    {% if g.is_active and g.progress_pct < 100 %}
+    <form method="POST" action="{{ url_for('goals.update_goal', goal_id=g.id) }}" class="d-flex gap-2 mt-2">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add_funds">
+      <input type="number" name="amount" class="form-control form-control-sm" placeholder="Add amount" min="1" step="any" required>
+      <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-plus"></i></button>
+    </form>
+    {% endif %}
+    {% if g.progress_pct >= 100 %}
+    <div class="alert alert-success py-1 px-2 mb-0 mt-2 small"><i class="bi bi-trophy-fill"></i> Goal Completed!</div>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+</div>
+{% endif %}
+
+<!-- Add Goal Modal -->
+<div class="modal fade" id="addGoalModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST" action="{{ url_for('goals.add_goal') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Financial Goal</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Goal Name *</label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. Emergency Fund, New Bike" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">Goal Type</label>
+              <select name="goal_type" class="form-select">
+                {% for gt in goal_types %}<option>{{ gt }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Priority</label>
+              <select name="priority" class="form-select">
+                <option value="1">High</option>
+                <option value="2" selected>Medium</option>
+                <option value="3">Low</option>
+              </select>
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">Target Amount (&#8377;) *</label>
+              <input type="number" name="target_amount" class="form-control" min="1" step="any" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Already Saved (&#8377;)</label>
+              <input type="number" name="current_amount" class="form-control" value="0" min="0" step="any">
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">Monthly Contribution (&#8377;)</label>
+              <input type="number" name="monthly_contribution" class="form-control" min="0" step="any">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Target Date</label>
+              <input type="date" name="deadline" class="form-control" min="{{ today.isoformat() }}">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Notes (optional)</label>
+            <textarea name="notes" class="form-control" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Create Goal</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

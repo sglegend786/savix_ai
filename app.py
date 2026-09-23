@@ -93,6 +93,13 @@ def create_app():
         if not os.path.exists(app.instance_path):
             os.makedirs(app.instance_path, exist_ok=True)
         db.create_all()
+        
+        # Auto-seed the database if schemes are missing
+        try:
+            from seed_investments import seed
+            seed()
+        except Exception as e:
+            print(f"Error seeding DB: {e}")
 
     return app
 

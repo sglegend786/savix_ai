@@ -89,6 +89,9 @@ def create_app():
         return render_template("429.html"), 429
 
     with app.app_context():
+        import os
+        if not os.path.exists(app.instance_path):
+            os.makedirs(app.instance_path, exist_ok=True)
         db.create_all()
 
     return app
